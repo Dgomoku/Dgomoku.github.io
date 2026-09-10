@@ -1,2 +1,341 @@
-<h1>hello teacher! </h1>
-<h1>網站製作中</h1>
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dgomoku</title>
+  <style>
+    /* 全局樣式 */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+      background: #f4f6f9; 
+      color: #333;
+      line-height: 1.5;
+    }
+
+    /* 頂部導覽列 (手機響應式) */
+    header {
+      background-color: #ffffff;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      padding: 0 1.2rem;
+      height: 60px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #1a73e8;
+      letter-spacing: -0.5px;
+    }
+
+    nav { display: flex; gap: 0.5rem; }
+
+    .nav-link {
+      text-decoration: none;
+      color: #5f6368;
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .nav-link:hover, .nav-link.active {
+      color: #1a73e8;
+      background-color: #e8f0fe;
+    }
+
+    /* 內容容器 */
+    main {
+      max-width: 680px;
+      margin: 1.5rem auto;
+      padding: 0 1rem;
+    }
+
+    .page-section { display: none; }
+    .page-section.active { display: block; }
+
+    /* 排行榜卡片 */
+    .leaderboard-card {
+      background: white;
+      padding: 1.5rem 1.2rem;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+    }
+
+    /* 關於頁面登場動畫 (0.5s) */
+    #about.active .leaderboard-card {
+      animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .list-title {
+      font-size: 1.25rem;
+      margin-bottom: 1.2rem;
+      color: #202124;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+    }
+
+    #leaderboard-list {
+      list-style: none;
+    }
+
+    /* 淡入出場動畫 (0.5s) */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* 排行榜項目 (對齊手機與電腦) */
+    .leaderboard-item {
+      display: grid;
+      grid-template-columns: 44px 1fr auto;
+      align-items: center;
+      padding: 0.85rem 1rem;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      background: #ffffff;
+      border: 1px solid #f0f0f0;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      
+      animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      opacity: 0;
+    }
+
+    .leaderboard-item:active {
+      transform: scale(0.98); /* 手機按壓視覺回饋 */
+    }
+
+    /* 前三名美化配色 */
+    .leaderboard-item.top1 {
+      background: linear-gradient(135deg, #fffcf0 0%, #fff7d6 100%);
+      border: 1px solid #ffe066;
+    }
+    .leaderboard-item.top2 {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border: 1px solid #dee2e6;
+    }
+    .leaderboard-item.top3 {
+      background: linear-gradient(135deg, #fff8f5 0%, #ffe8cc 100%);
+      border: 1px solid #ffd8a8;
+    }
+
+    /* 4 ~ 8 名美化配色 */
+    .leaderboard-item.top4 {
+      background: linear-gradient(135deg, #fcf0ff 0%, #f3d9fa 100%);
+      border: 1px solid #eebefa;
+    }
+    .leaderboard-item.top5 {
+      background: linear-gradient(135deg, #f0f7ff 0%, #d0ebff 100%);
+      border: 1px solid #a5d8ff;
+    }
+    .leaderboard-item.top6 {
+      background: linear-gradient(135deg, #f0fdf4 0%, #d3f9d8 100%);
+      border: 1px solid #b2f2bb;
+    }
+    .leaderboard-item.top7 {
+      background: linear-gradient(135deg, #fff9db 0%, #fff3bf 100%);
+      border: 1px solid #ffe066;
+    }
+    .leaderboard-item.top8 {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border: 1px solid #dee2e6;
+    }
+
+    /* 名次圖示與數字 */
+    .rank-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.1rem;
+      color: #70757a;
+      width: 32px;
+      height: 32px;
+    }
+
+    .top1 .rank-box, .top2 .rank-box, .top3 .rank-box {
+      font-size: 1.4rem;
+    }
+
+    .top4 .rank-box { color: #ae3ec9; }
+    .top5 .rank-box { color: #1971c2; }
+    .top6 .rank-box { color: #099268; }
+    .top7 .rank-box { color: #f59f00; }
+    .top8 .rank-box { color: #495057; }
+
+    /* 玩家名字 */
+    .name {
+      font-weight: 700;
+      font-size: 1rem;
+      color: #202124;
+      padding-right: 10px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap; /* 名字過長時自動顯示點點點，避免跑版 */
+    }
+
+    /* 段位稱號 Badge */
+    .level {
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: #1a73e8;
+      background-color: #e8f0fe;
+      padding: 5px 12px;
+      border-radius: 20px;
+      white-space: nowrap;
+      letter-spacing: 0.3px;
+    }
+
+    .top1 .level { background-color: #fcc419; color: #422000; }
+    .top2 .level { background-color: #ced4da; color: #212529; }
+    .top3 .level { background-color: #ff922b; color: #ffffff; }
+    .top4 .level { background-color: #fcc419; color: #422000; }
+    .top5 .level { background-color: #ced4da; color: #212529; }
+    .top6 .level { background-color: #ff922b; color: #ffffff; }
+    
+    /* 手機極小螢幕優化 (微調間距) */
+    @media (max-width: 480px) {
+      header { padding: 0 1rem; }
+      main { margin: 1rem auto; }
+      .leaderboard-card { padding: 1.2rem 0.9rem; }
+      .leaderboard-item {
+        grid-template-columns: 36px 1fr auto;
+        padding: 0.75rem 0.75rem;
+      }
+      .name { font-size: 0.95rem; }
+      .level { font-size: 0.8rem; padding: 4px 9px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand-title">Dgomoku</div>
+    <nav>
+      <a class="nav-link active" onclick="switchTab('home', this)">排行榜</a>
+      <a class="nav-link" onclick="switchTab('about', this)">關於</a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- 分頁一：主頁 -->
+    <section id="home" class="page-section active">
+      <div class="leaderboard-card">
+        <h2 class="list-title">🏆 當屆排名</h2>
+        <ul id="leaderboard-list">
+          <!-- 由 JS 自動渲染生成 -->
+        </ul>
+      </div>
+    </section>
+
+    <!-- 分頁二：關於 -->
+    <section id="about" class="page-section">
+      <div class="leaderboard-card">
+        <h2 class="list-title">關於</h2>
+        <p style="line-height: 1.8; color: #5f6368; font-size: 0.95rem;">
+          歡迎來到 Dgomoku！
+          <br><br>
+          共有七個頭銜，由高到低排列如下：
+          <br>
+          天人合一<br>
+          登峰造極<br>
+          傲視群雄<br>
+          初神入化<br>
+          爐火純青<br>
+          登堂入室<br>
+          初出茅廬
+          <br><br>
+          此網站由 806 35 與 AI 共同製作。
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ==========================================
+    // ⬇️ 這裡可以任意增加人數，也允許重複的名字 ⬇️
+    // 請注意格式：每個物件之間要有逗號 `,`
+    // ==========================================
+    const leaderboardData = [
+      { name: "陳益鋐", level: "爐火純青" },
+      { name: "呂翌節", level: "爐火純青" },
+      { name: "陳品赫", level: "爐火純青" },
+      { name: "黃奕勝", level: "爐火純青" },
+      { name: "孫萬霖", level: "登堂入室" },
+      { name: "林定力", level: "登堂入室" },
+      { name: "李畇樓", level: "初出茅廬" },
+      { name: "張宏亮", level: "初出茅廬" }  
+    ];
+    // ==========================================
+
+    function renderLeaderboard() {
+      const listEl = document.getElementById("leaderboard-list");
+      listEl.innerHTML = ""; 
+
+      leaderboardData.forEach((player, index) => {
+        const rank = index + 1;
+        const li = document.createElement("li");
+        
+        li.className = "leaderboard-item";
+        
+        // 名次顯示邏輯：前三名顯示獎牌 Emoji，其餘顯示數字
+        let rankBadge = `${rank}`;
+        if (rank === 1) {
+          li.classList.add("top1");
+          rankBadge = "🥇";
+        } else if (rank === 2) {
+          li.classList.add("top2");
+          rankBadge = "🥈";
+        } else if (rank === 3) {
+          li.classList.add("top3");
+          rankBadge = "🥉";
+        } 
+          
+        // 交錯登場動畫：每多一名多延遲 0.04 秒
+        li.style.animationDelay = `${index * 0.04}s`;
+
+        li.innerHTML = `
+          <div class="rank-box">${rankBadge}</div>
+          <div class="name">${player.name}</div>
+          <div class="level">${player.level}</div>
+        `;
+        
+        listEl.appendChild(li);
+      });
+    }
+
+    window.switchTab = function(pageId, element) {
+      document.querySelectorAll('.page-section').forEach(sec => sec.classList.remove('active'));
+      document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+
+      document.getElementById(pageId).classList.add('active');
+      element.classList.add('active');
+      
+      if (pageId === 'home') {
+        renderLeaderboard();
+      }
+    };
+
+    document.addEventListener("DOMContentLoaded", renderLeaderboard);
+  </script>
+
+</body>
+</html>
+
