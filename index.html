@@ -46,6 +46,9 @@
       border-radius: 8px;
       cursor: pointer;
       transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .nav-link:hover, .nav-link.active {
@@ -136,28 +139,6 @@
       border: 1px solid #ffd8a8;
     }
 
-    /* 4 ~ 8 名美化配色 */
-    .leaderboard-item.top4 {
-      background: linear-gradient(135deg, #fcf0ff 0%, #f3d9fa 100%);
-      border: 1px solid #eebefa;
-    }
-    .leaderboard-item.top5 {
-      background: linear-gradient(135deg, #f0f7ff 0%, #d0ebff 100%);
-      border: 1px solid #a5d8ff;
-    }
-    .leaderboard-item.top6 {
-      background: linear-gradient(135deg, #f0fdf4 0%, #d3f9d8 100%);
-      border: 1px solid #b2f2bb;
-    }
-    .leaderboard-item.top7 {
-      background: linear-gradient(135deg, #fff9db 0%, #fff3bf 100%);
-      border: 1px solid #ffe066;
-    }
-    .leaderboard-item.top8 {
-      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-      border: 1px solid #dee2e6;
-    }
-
     /* 名次圖示與數字 */
     .rank-box {
       display: flex;
@@ -173,12 +154,6 @@
     .top1 .rank-box, .top2 .rank-box, .top3 .rank-box {
       font-size: 1.4rem;
     }
-
-    .top4 .rank-box { color: #ae3ec9; }
-    .top5 .rank-box { color: #1971c2; }
-    .top6 .rank-box { color: #099268; }
-    .top7 .rank-box { color: #f59f00; }
-    .top8 .rank-box { color: #495057; }
 
     /* 玩家名字 */
     .name {
@@ -206,13 +181,13 @@
     .top1 .level { background-color: #fcc419; color: #422000; }
     .top2 .level { background-color: #ced4da; color: #212529; }
     .top3 .level { background-color: #ff922b; color: #ffffff; }
-    .top4 .level { background-color: #fcc419; color: #422000; }
-    .top5 .level { background-color: #ced4da; color: #212529; }
-    .top6 .level { background-color: #ff922b; color: #ffffff; }
     
-    /* 手機極小螢幕優化 (微調間距) */
+    /* 手機極小螢幕優化 (極緻響應式調整) */
     @media (max-width: 480px) {
-      header { padding: 0 1rem; }
+      header { padding: 0 0.8rem; }
+      .brand-title { font-size: 1.2rem; }
+      nav { gap: 0.25rem; }
+      .nav-link { font-size: 0.85rem; padding: 5px 8px; }
       main { margin: 1rem auto; }
       .leaderboard-card { padding: 1.2rem 0.9rem; }
       .leaderboard-item {
@@ -231,6 +206,7 @@
     <nav>
       <a class="nav-link active" onclick="switchTab('home', this)">排行榜</a>
       <a class="nav-link" onclick="switchTab('about', this)">關於</a>
+      <a class="nav-link" href="Dgomoku_AI.html">AI</a>
     </nav>
   </header>
 
@@ -328,4 +304,3 @@
 
 </body>
 </html>
-
