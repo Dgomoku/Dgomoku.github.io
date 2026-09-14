@@ -34,7 +34,6 @@
       overflow-x: hidden;
     }
 
-    /* 頂部導覽列 */
     header {
       width: 100%;
       max-width: 800px;
@@ -69,7 +68,6 @@
       color: #000;
     }
 
-    /* 主內容區 */
     main {
       flex: 1;
       width: 100%;
@@ -81,7 +79,6 @@
       gap: 12px;
     }
 
-    /* 設定面板 */
     .settings-card {
       width: 100%;
       background: var(--card-bg);
@@ -127,7 +124,6 @@
       opacity: 0.9;
     }
 
-    /* 狀態提示列 */
     .status-bar {
       width: 100%;
       text-align: center;
@@ -144,7 +140,6 @@
       color: #444;
     }
 
-    /* 棋盤容器 (1:1 RWD) */
     .board-wrapper {
       width: 100%;
       max-width: 500px;
@@ -166,7 +161,6 @@
       cursor: pointer;
     }
 
-    /* 底部控制按鈕區 */
     .action-panel {
       width: 100%;
       max-width: 500px;
@@ -208,7 +202,6 @@
       box-shadow: none;
     }
 
-    /* 彈窗 Modal */
     .modal-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -269,12 +262,12 @@
           <option value="2">Lv.2 初級</option>
           <option value="3">Lv.3 基礎</option>
           <option value="4">Lv.4 中級</option>
-          <option value="5" selected>Lv.5 進階</option>
+          <option value="5">Lv.5 進階</option>
           <option value="6">Lv.6 高手</option>
           <option value="7">Lv.7 精英</option>
-          <option value="8">Lv.8 大師</option>
-          <option value="9">Lv.9 宗師</option>
-          <option value="10">Lv.10 棋聖</option>
+          <option value="8" selected>Lv.8 大師 (強防守)</option>
+          <option value="9">Lv.9 宗師 (鐵壁)</option>
+          <option value="10">Lv.10 棋聖 (防守優先)</option>
         </select>
       </div>
 
@@ -599,9 +592,7 @@ function startWinAnimation(winInfo) {
   animReqId = requestAnimationFrame(animate);
 }
 
-// ==========================================
-// 連珠 (Renju) 規則引擎
-// ==========================================
+// 規則引擎
 function countDir(r, c, dr, dc, color) {
   let count = 0;
   let nr = r + dr, nc = c + dc;
@@ -638,7 +629,6 @@ function checkRenjuFoul(r, c, color) {
   board[r][c] = 1;
   const dirs = [[0,1], [1,0], [1,1], [1,-1]];
 
-  // 1. 長連 (>5)
   for (let [dr, dc] of dirs) {
     let len = 1 + countDir(r, c, dr, dc, 1) + countDir(r, c, -dr, -dc, 1);
     if (len > 5) {
@@ -647,7 +637,6 @@ function checkRenjuFoul(r, c, color) {
     }
   }
 
-  // 2. 雙三與雙四
   let openThrees = 0;
   let fours = 0;
 
@@ -683,134 +672,197 @@ function getLinePatternStr(r, c, dr, dc, targetColor) {
 
 function analyzeMove(r, c, color) {
   board[r][c] = color;
-  let result = { isFive: false, isLive4: false, isRush4: false, isLive3: false };
+  let result = { isFive: false, isLive4: false, isRush4: false, isLive3: false, isDouble3: false, isDouble4: false, isFourThree: false };
   const dirs = [[0,1], [1,0], [1,1], [1,-1]];
+  let live3Count = 0;
+  let rush4Count = 0;
 
   for (let [dr, dc] of dirs) {
     let pattern = getLinePatternStr(r, c, dr, dc, color);
     if (pattern.includes('11111')) result.isFive = true;
-    if (pattern.includes('011110')) result.isLive4 = true;
-    if (pattern.includes('011112') || pattern.includes('211110') || pattern.includes('0101110') || pattern.includes('0110110') || pattern.includes('10111') || pattern.includes('11011')) result.isRush4 = true;
-    if (pattern.includes('01110') || pattern.includes('010110') || pattern.includes('011010')) result.isLive3 = true;
+    if (pattern.includes('011110')) {
+      result.isLive4 = true;
+      rush4Count++;
+    }
+    if (pattern.includes('011112') || pattern.includes('211110') || pattern.includes('0101110') || pattern.includes('0110110') || pattern.includes('10111') || pattern.includes('11011')) {
+      result.isRush4 = true;
+      rush4Count++;
+    }
+    if (pattern.includes('0110') || pattern.includes('010110') || pattern.includes('011010') || pattern.includes('01110')) {
+      result.isLive3 = true;
+      live3Count++;
+    }
   }
+
+  if (live3Count >= 2) result.isDouble3 = true;
+  if (rush4Count >= 2) result.isDouble4 = true;
+  if (rush4Count >= 1 && live3Count >= 1) result.isFourThree = true;
 
   board[r][c] = 0;
   return result;
 }
 
-// ==========================================
-// 全新分層 AI 大腦 (根據要求調整邏輯)
-// ==========================================
+// AI 智能引擎 (Lv.1 ~ Lv.10 強防守強化版)
 function getAIMove(level, myColor) {
   const oppColor = 3 - myColor;
-  const candidates = getCandidateMoves();
+  let candidates = getCandidateMoves();
   if (candidates.length === 0) return { r: 7, c: 7 };
 
-  // Level 1-3 會失誤：給定機率略過「防守致命威脅」，直接下普通棋
-  let blunderChance = 0;
-  if (level === 1) blunderChance = 0.40; // 40% 機率沒看見威脅
-  if (level === 2) blunderChance = 0.20; // 20% 
-  if (level === 3) blunderChance = 0.10; // 10%
+  // ----------------------------------------------------
+  // Level 1 ~ 3：低階 AI，帶失誤
+  // ----------------------------------------------------
+  if (level <= 3) {
+    const errorRates = { 1: 0.50, 2: 0.30, 3: 0.15 };
+    const makeMistake = Math.random() < errorRates[level];
 
-  const isBlunder = Math.random() < blunderChance;
-
-  // 如果「沒有」發生失誤，執行絕對優先生死判斷 (Lv4 以上幾乎不會失誤)
-  if (!isBlunder) {
-    // 1. AI 直接連五獲勝點
-    for (let move of candidates) {
-      if (myColor === 1 && checkRenjuFoul(move.r, move.c, 1)) continue;
-      let analysis = analyzeMove(move.r, move.c, myColor);
-      if (analysis.isFive) return move;
+    if (!makeMistake) {
+      for (let move of candidates) {
+        if (myColor === 1 && checkRenjuFoul(move.r, move.c, 1)) continue;
+        if (analyzeMove(move.r, move.c, myColor).isFive) return move;
+      }
+      for (let move of candidates) {
+        if (analyzeMove(move.r, move.c, oppColor).isFive) return move;
+      }
     }
 
-    // 2. 對手連五威脅點（緊急防守）
+    candidates.sort((a, b) => evaluatePoint(b.r, b.c, myColor) - evaluatePoint(a.r, a.c, myColor));
+    const range = Math.min(candidates.length, makeMistake ? 8 : 3);
+    return candidates[Math.floor(Math.random() * range)];
+  }
+
+  // ----------------------------------------------------
+  // 通用連五優先（Lv.4 及以上）
+  // ----------------------------------------------------
+  for (let move of candidates) {
+    if (myColor === 1 && checkRenjuFoul(move.r, move.c, 1)) continue;
+    if (analyzeMove(move.r, move.c, myColor).isFive) return move;
+  }
+  for (let move of candidates) {
+    if (analyzeMove(move.r, move.c, oppColor).isFive) return move;
+  }
+
+  // ----------------------------------------------------
+  // 【強化防守】Level 8 ~ 10 高階強防守優先鏈
+  // ----------------------------------------------------
+  if (level >= 8) {
+    // 1. 優先堵截對手「活四」
     for (let move of candidates) {
-      let oppAnalysis = analyzeMove(move.r, move.c, oppColor);
-      if (oppAnalysis.isFive) {
+      if (myColor === 1 && checkRenjuFoul(move.r, move.c, 1)) continue;
+      if (analyzeMove(move.r, move.c, oppColor).isLive4) return move;
+    }
+
+    // 2. 【核心重點】優先攔截黑手/對手的「四三殺 (三四)」、「雙三殺」、「雙四殺」
+    for (let move of candidates) {
+      if (myColor === 1 && checkRenjuFoul(move.r, move.c, 1)) continue;
+      if (oppColor === 1 && checkRenjuFoul(move.r, move.c, 1)) continue; // 若黑棋下該點屬禁手，則無需封堵
+
+      let oppA = analyzeMove(move.r, move.c, oppColor);
+      if (oppA.isFourThree || oppA.isDouble3 || oppA.isDouble4) {
+        return move; // 強制搶佔殺點
+      }
+    }
+
+    // 3. 封堵對手「衝四」與「活三」
+    for (let move of candidates) {
+      if (myColor === 1 && checkRenjuFoul(move.r, move.c, 1)) continue;
+      let oppA = analyzeMove(move.r, move.c, oppColor);
+      if (oppA.isRush4 || oppA.isLive3) {
+        // 如果我方能同時形成衝四或活四才選擇攻擊，否則一律先防守
+        let myA = analyzeMove(move.r, move.c, myColor);
+        if (myA.isLive4 || myA.isRush4) return move;
+        return move;
+      }
+    }
+
+    // 4. 解除對手 VCF 威脅
+    let oppVcfMove = searchVCF(oppColor, 4);
+    if (oppVcfMove) {
+      if (myColor !== 1 || !checkRenjuFoul(oppVcfMove.r, oppVcfMove.c, 1)) return oppVcfMove;
+    }
+  }
+
+  // ----------------------------------------------------
+  // Level 6 ~ 7 防禦機制 (基礎四三封堵)
+  // ----------------------------------------------------
+  if (level >= 6 && level <= 7) {
+    for (let move of candidates) {
+      if (myColor === 1 && checkRenjuFoul(move.r, move.c, 1)) continue;
+      if (oppColor === 1 && checkRenjuFoul(move.r, move.c, 1)) continue;
+      if (analyzeMove(move.r, move.c, oppColor).isFourThree) return move;
+    }
+  }
+
+  // ----------------------------------------------------
+  // Level 4 ~ 5：基礎防堵
+  // ----------------------------------------------------
+  if (level <= 5) {
+    for (let move of candidates) {
+      if (myColor === 1 && checkRenjuFoul(move.r, move.c, 1)) continue;
+      let a = analyzeMove(move.r, move.c, myColor);
+      if (a.isLive4 || a.isRush4) return move;
+    }
+
+    for (let move of candidates) {
+      let oppA = analyzeMove(move.r, move.c, oppColor);
+      if (oppA.isLive4 || oppA.isLive3) {
         if (myColor === 1 && checkRenjuFoul(move.r, move.c, 1)) continue;
         return move;
       }
     }
 
-    // 3. AI 活四 / 衝四攻勢
-    let aiLive4Moves = [], aiRush4Moves = [];
-    for (let move of candidates) {
-      if (myColor === 1 && checkRenjuFoul(move.r, move.c, 1)) continue;
-      let analysis = analyzeMove(move.r, move.c, myColor);
-      if (analysis.isLive4) aiLive4Moves.push(move);
-      if (analysis.isRush4) aiRush4Moves.push(move);
-    }
-
-    // 4. 封堵對手的活三（因為活三下一步就是活四必勝）
-    let oppLive3BlockMoves = [];
-    for (let move of candidates) {
-      let oppAnalysis = analyzeMove(move.r, move.c, oppColor);
-      if (oppAnalysis.isLive4) oppLive3BlockMoves.push(move);
-    }
-
-    // 必走策略結算
-    if (oppLive3BlockMoves.length > 0) {
-      if (aiLive4Moves.length > 0) return aiLive4Moves[0]; // 自己有活4優先
-      if (aiRush4Moves.length > 0) return aiRush4Moves[0]; // 自己有衝4優先
-      for (let m of oppLive3BlockMoves) {
-        if (myColor === 1 && checkRenjuFoul(m.r, m.c, 1)) continue;
-        return m;
-      }
-    }
-    
-    // 如果自己有活四，直接發動
-    if (aiLive4Moves.length > 0) return aiLive4Moves[0];
-  }
-
-  // --- 進入常規決策階段 ---
-
-  // Level 1-3: 如果發生失誤，或沒事做，隨便選評價尚可的點 (不預測)
-  if (level <= 3) {
-    candidates.sort((a, b) => evaluatePoint(b.r, b.c, myColor) - evaluatePoint(a.r, a.c, myColor));
-    if (isBlunder) {
-      // 失誤時，隨機選前段班的普通點，不選最佳點
-      let idx = Math.floor(Math.random() * Math.min(8, candidates.length));
-      return candidates[idx];
-    } else {
-      return candidates[0];
-    }
-  }
-
-  // Level 4-5: 幾乎不失誤，但「不預測」。(只看當下盤面價值，無 Minimax)
-  if (level <= 5) {
     candidates.sort((a, b) => {
       let scoreA = evaluatePoint(a.r, a.c, myColor) + evaluatePoint(a.r, a.c, oppColor) * 1.5;
       let scoreB = evaluatePoint(b.r, b.c, myColor) + evaluatePoint(b.r, b.c, oppColor) * 1.5;
       return scoreB - scoreA;
     });
+
+    for (let m of candidates) {
+      if (myColor === 1 && checkRenjuFoul(m.r, m.c, 1)) continue;
+      return m;
+    }
     return candidates[0];
   }
 
-  // --- Alpha-Beta 預測引擎 (Level 6~10) ---
-  
-  let searchDepth = 1;
-  let searchWidth = 10;
+  // ----------------------------------------------------
+  // Level 8 ~ 10：深層 Alpha-Beta 搜尋 (防守權重極高)
+  // ----------------------------------------------------
+  const depthMap = { 6: 2, 7: 3, 8: 4, 9: 5, 10: 6 };
+  const searchDepth = depthMap[level] || 4;
 
-  // Level 6-7: 會用一些技巧 (輕度預測，Depth 2 = AI 下 -> 玩家應對)
-  if (level === 6) { searchDepth = 2; searchWidth = 12; }
-  if (level === 7) { searchDepth = 2; searchWidth = 15; }
-  
-  // Level 8-9: 預測玩家「一步」 (Depth 3 = AI 下 -> 玩家應對 -> AI 再次應對)
-  if (level === 8) { searchDepth = 3; searchWidth = 12; }
-  if (level === 9) { searchDepth = 3; searchWidth = 15; }
-  
-  // Level 10: 預測玩家「兩步」並使用高級技巧防守 (Depth 5 = AI -> 玩家 -> AI -> 玩家 -> AI)
-  if (level === 10) { searchDepth = 5; searchWidth = 12; } // 寬度稍微收斂以保證深度5的效能
+  if (level === 10) {
+    // 棋聖限定：主動 VCF 搜尋
+    let myVcf = searchVCF(myColor, 5);
+    if (myVcf) return myVcf;
 
-  // 初步排序 (加速剪枝)
+    // 製造禁手誘餌
+    if (oppColor === 1) {
+      for (let move of candidates) {
+        board[move.r][move.c] = myColor;
+        let cands2 = getCandidateMoves().slice(0, 8);
+        for (let c2 of cands2) {
+          if (checkRenjuFoul(c2.r, c2.c, 1)) {
+            board[move.r][move.c] = 0;
+            return move;
+          }
+        }
+        board[move.r][move.c] = 0;
+      }
+    }
+  }
+
+  return searchBestMoveMinimax(searchDepth, myColor, candidates);
+}
+
+function searchBestMoveMinimax(depth, myColor, candidates) {
+  const oppColor = 3 - myColor;
+
   candidates.sort((a, b) => {
-    let defenseWeight = (level === 10) ? 2.0 : 1.5; // Lv10 的高級技巧：極度注重防守
-    let scoreA = evaluatePoint(a.r, a.c, myColor) + evaluatePoint(a.r, a.c, oppColor) * defenseWeight;
-    let scoreB = evaluatePoint(b.r, b.c, myColor) + evaluatePoint(b.r, b.c, oppColor) * defenseWeight;
+    let scoreA = evaluatePoint(a.r, a.c, myColor) + evaluatePoint(a.r, a.c, oppColor) * 2.0;
+    let scoreB = evaluatePoint(b.r, b.c, myColor) + evaluatePoint(b.r, b.c, oppColor) * 2.0;
     return scoreB - scoreA;
   });
 
-  const topCandidates = candidates.slice(0, Math.min(searchWidth, candidates.length));
+  const topCandidates = candidates.slice(0, Math.min(14, candidates.length));
   let bestMove = topCandidates[0];
   let bestScore = -Infinity;
 
@@ -818,7 +870,7 @@ function getAIMove(level, myColor) {
     if (myColor === 1 && checkRenjuFoul(move.r, move.c, 1)) continue;
 
     board[move.r][move.c] = myColor;
-    let score = minimax(searchDepth - 1, false, -Infinity, Infinity, myColor, searchWidth, level);
+    let score = minimax(depth - 1, false, -Infinity, Infinity, myColor);
     board[move.r][move.c] = 0;
 
     if (score > bestScore) {
@@ -826,60 +878,60 @@ function getAIMove(level, myColor) {
       bestMove = move;
     }
   }
-
   return bestMove;
 }
 
-// 遞迴預測大腦
-function minimax(depth, isMaximizing, alpha, beta, myColor, searchWidth, level) {
+function minimax(depth, isMaximizing, alpha, beta, myColor) {
   if (depth === 0) {
-    return evaluateBoardScore(myColor, level);
+    return evaluateBoardScore(myColor);
   }
 
+  const candidates = getCandidateMoves().slice(0, 10);
   const oppColor = 3 - myColor;
-  let candidates = getCandidateMoves();
-  
-  // 遞迴內的快速排序 (提升剪枝效率)
-  let defenseWeight = (level === 10) ? 2.0 : 1.5;
-  candidates.sort((a, b) => {
-    let color = isMaximizing ? myColor : oppColor;
-    let opp = isMaximizing ? oppColor : myColor;
-    let scoreA = evaluatePoint(a.r, a.c, color) + evaluatePoint(a.r, a.c, opp) * defenseWeight;
-    let scoreB = evaluatePoint(b.r, b.c, color) + evaluatePoint(b.r, b.c, opp) * defenseWeight;
-    return scoreB - scoreA;
-  });
-  
-  candidates = candidates.slice(0, Math.min(searchWidth, candidates.length));
 
   if (isMaximizing) {
     let maxEval = -Infinity;
     for (let move of candidates) {
       if (myColor === 1 && checkRenjuFoul(move.r, move.c, 1)) continue;
-      
       board[move.r][move.c] = myColor;
-      let evalScore = minimax(depth - 1, false, alpha, beta, myColor, searchWidth, level);
+      let evalScore = minimax(depth - 1, false, alpha, beta, myColor);
       board[move.r][move.c] = 0;
-      
       maxEval = Math.max(maxEval, evalScore);
       alpha = Math.max(alpha, evalScore);
-      if (beta <= alpha) break; // Beta 剪枝
+      if (beta <= alpha) break;
     }
     return maxEval;
   } else {
     let minEval = Infinity;
     for (let move of candidates) {
       if (oppColor === 1 && checkRenjuFoul(move.r, move.c, 1)) continue;
-      
       board[move.r][move.c] = oppColor;
-      let evalScore = minimax(depth - 1, true, alpha, beta, myColor, searchWidth, level);
+      let evalScore = minimax(depth - 1, true, alpha, beta, myColor);
       board[move.r][move.c] = 0;
-      
       minEval = Math.min(minEval, evalScore);
       beta = Math.min(beta, evalScore);
-      if (beta <= alpha) break; // Alpha 剪枝
+      if (beta <= alpha) break;
     }
     return minEval;
   }
+}
+
+function searchVCF(color, maxDepth) {
+  if (maxDepth <= 0) return null;
+  const candidates = getCandidateMoves();
+
+  for (let move of candidates) {
+    if (color === 1 && checkRenjuFoul(move.r, move.c, 1)) continue;
+    let a = analyzeMove(move.r, move.c, color);
+    if (a.isFive) return move;
+    if (a.isLive4 || a.isRush4) {
+      board[move.r][move.c] = color;
+      let nextVcf = searchVCF(color, maxDepth - 1);
+      board[move.r][move.c] = 0;
+      if (nextVcf || a.isLive4) return move;
+    }
+  }
+  return null;
 }
 
 function getCandidateMoves() {
@@ -906,8 +958,7 @@ function getCandidateMoves() {
   return moves;
 }
 
-// 加入等級感知，讓高等級 AI 更注重防守平衡
-function evaluateBoardScore(myColor, level) {
+function evaluateBoardScore(myColor) {
   const oppColor = 3 - myColor;
   let myScore = 0, oppScore = 0;
 
@@ -917,9 +968,8 @@ function evaluateBoardScore(myColor, level) {
       else if (board[r][c] === oppColor) oppScore += evaluatePoint(r, c, oppColor);
     }
   }
-  
-  let defenseWeight = (level === 10) ? 2.0 : 1.5;
-  return myScore - oppScore * defenseWeight;
+  // 防禦優先：大幅拉高對手盤面分值的壓制權重 (2.2倍)
+  return myScore - oppScore * 2.2;
 }
 
 function evaluatePoint(r, c, color) {
@@ -931,10 +981,10 @@ function evaluatePoint(r, c, color) {
   for (let [dr, dc] of dirs) {
     let pattern = getLinePatternStr(r, c, dr, dc, color);
     if (pattern.includes('11111')) score += 100000;
-    else if (pattern.includes('011110')) score += 20000;
-    else if (pattern.includes('011112') || pattern.includes('211110') || pattern.includes('0101110')) score += 3000;
-    else if (pattern.includes('01110') || pattern.includes('010110')) score += 800;
-    else if (pattern.includes('0110')) score += 100;
+    else if (pattern.includes('011110')) score += 25000;
+    else if (pattern.includes('011112') || pattern.includes('211110') || pattern.includes('0101110')) score += 4000;
+    else if (pattern.includes('01110') || pattern.includes('010110')) score += 1200;
+    else if (pattern.includes('0110')) score += 150;
   }
   return score;
 }
